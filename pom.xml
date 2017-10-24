@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.lambdazen.pixy</groupId>
 	<artifactId>pixy</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>Pixy Graph Query Language</name>
 	<description>Pixy is a declarative vendor-independent graph query language built on the Tinkerpop software stack</description>
 
@@ -48,7 +48,6 @@
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
-				<version>2.3.6</version>
 				<extensions>true</extensions>
 			</plugin>
 
@@ -156,7 +155,7 @@
 		<dependency>
 			<groupId>com.lambdazen.bitsy</groupId>
 			<artifactId>bitsy</artifactId>
-			<version>1.2-SNAPSHOT</version>
+			<version>1.5.2</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
