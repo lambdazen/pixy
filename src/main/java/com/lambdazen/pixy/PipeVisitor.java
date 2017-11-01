@@ -11,6 +11,6 @@ public interface PipeVisitor {
 	public void visit(PixyPipe pp);
 
 	public void mark();
-	
+
 	public void reset();
 }

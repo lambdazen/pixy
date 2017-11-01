@@ -3,10 +3,6 @@ package com.lambdazen.pixy.gremlin;
 import com.lambdazen.pixy.PixyDatum;
 import com.lambdazen.pixy.PixyErrorCodes;
 import com.lambdazen.pixy.PixyException;
-import com.tinkerpop.pipes.AbstractPipe;
-import com.tinkerpop.pipes.transform.TransformPipe;
-import com.tinkerpop.pipes.util.AsPipe;
-import com.tinkerpop.pipes.util.PipeHelper;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -18,13 +14,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
-public class PixyEvalPipe<S, T> extends AbstractPipe<S, T> implements TransformPipe<S, T>, PixyParentQueryPipe {
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser.Admin;
+import org.apache.tinkerpop.gremlin.process.traversal.step.ByModulating;
+import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
+import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+
+public class PixyEvalStep extends PixyCoalesceStep {
     private static Map<String, EvalOperation> EVAL_OPS;
 
     private List<PixyDatum> operations;
-    private final Map<String, AsPipe> asPipeMap;
-    private List<AsPipe> allAsPipes;
-    private PixyParentPipe parentPipe;
     private boolean initialized = false;
     
     static {
@@ -33,117 +37,77 @@ public class PixyEvalPipe<S, T> extends AbstractPipe<S, T> implements TransformP
     	loadEvalOps();
     }
 
-    public PixyEvalPipe(List<PixyDatum> operations, List<AsPipe> allPreviousAsPipes) {
+    public PixyEvalStep(final Traversal.Admin traversal, List<PixyDatum> operations) {
+    	super(traversal, new String[0]);
     	this.operations = operations;
-    	this.asPipeMap = new HashMap<String, AsPipe>();
-    	this.allAsPipes = new ArrayList<AsPipe>(allPreviousAsPipes);
-    }
-    
-    private void loadPipesIfNecessary() {
-    	if (!initialized) {
-	    	initialized = true;
-	    	
-	    	if (parentPipe != null) {
-	    		allAsPipes.addAll(parentPipe.getAsPipes());
-	    	}
-	    	
-	    	// Scope the steps so that the last as() is picked up
-	    	Collections.reverse(allAsPipes);
-	
-	    	for (PixyDatum op : operations) {
-	    		if (op.isAtomAPipeVar()) {
-	    			String namedStep = op.getAtomVarName();
-	
-	    			if (namedStep.length() > 0) {
-	    				asPipeMap.put(namedStep, findNamedStep(namedStep));
-	    			}
-	    		}
-	    	}
-    	}
     }
 
-    public void setParentPipe(PixyParentPipe parent) {
-    	this.parentPipe = parent;
-    }
+	@Override
+	protected Object map(Admin traverser) {
+		Object ans = null;
 
-    private AsPipe findNamedStep(String namedStep) {
-    	for (AsPipe asPipe : allAsPipes) {
-    		if (asPipe.getName().equals(namedStep)) {
-    			return asPipe;
-    		}
-    	}
-    	
-    	throw new PixyException(PixyErrorCodes.MISSING_NAMED_STEP, "Could not find named step: " + namedStep + " in " + allAsPipes);
-	}
+        // Execute the operations
+        Stack<Object> runStack = new Stack<Object>();
+        
+        for (PixyDatum op : operations) {
+        	switch (op.getType()) {
+        	case NUMBER:
+        		runStack.push(op.getNumber());
+        		break;
+        		
+        	case STRING:
+        		runStack.push(op.getString());
+        		break;
 
-	public T processNextStart() {
-		// The pipe doesn't know its ancestors till the first event is received
-		loadPipesIfNecessary();
+        	case SPECIAL_ATOM:
+        		if (op.isAtomAPipeVar()) {
+        			String namedStep = op.getAtomVarName();
+        			
+        			Object curEnd;
+        			if (namedStep.equals("")) {
+        				curEnd = traverser.get();
+        			} else {
+        				curEnd = this.getNullableScopeValue(null, namedStep, traverser);
+        			}
 
-		T ans = null;
-		
-		while (ans == null) {
-			S input = this.starts.next();
-	
-	        // Execute the operations
-	        Stack<Object> runStack = new Stack<Object>();
-	        
-	        for (PixyDatum op : operations) {
-	        	switch (op.getType()) {
-	        	case NUMBER:
-	        		runStack.push(op.getNumber());
-	        		break;
-	        		
-	        	case STRING:
-	        		runStack.push(op.getString());
-	        		break;
-	
-	        	case SPECIAL_ATOM:
-	        		if (op.isAtomAPipeVar()) {
-	        			String namedStep = op.getAtomVarName();
-	        			
-	        			Object curEnd;
-	        			if (namedStep.equals("")) {
-	        				curEnd = input;
-	        			} else {
-							AsPipe asPipe = asPipeMap.get(namedStep);
-		        			assert (asPipe != null); // The constructor should have made sure of that
-		        			curEnd = asPipe.getCurrentEnd();
-	        			}
+        			Object item = convertToRuntimeObject(namedStep, curEnd);
+        			runStack.push(item);
+        		} else if (op.isTrue()) {
+        			runStack.push(Boolean.TRUE);
+        		} else if (op.isFail()) {
+        			runStack.push(Boolean.FALSE);
+        		} else {
+            		runStack.push(calculate(op.getAtom(), runStack));
+        		}
+        		break;
 
-	        			Object item = convertToRuntimeObject(namedStep, curEnd);
-	        			runStack.push(item);
-	        		} else if (op.isTrue()) {
-	        			runStack.push(Boolean.TRUE);
-	        		} else if (op.isFail()) {
-	        			runStack.push(Boolean.FALSE);
-	        		} else {
-	            		runStack.push(calculate(op.getAtom(), runStack));
-	        		}
-	        		break;
-	        		
-	        	case RELATION:
-	        	case LIST:
-	        	case VARIABLE:
-	        	default: 
-	        		throw new PixyException(PixyErrorCodes.INTERNAL_ERROR, "Unhandled operation: " + op + ". Run stack: " + runStack);
-	        	}        	
-	        }
-	
-	        if (runStack.size() == 1) {
-	        	ans = (T)runStack.pop();
-	        } else {
-	            throw new PixyException(PixyErrorCodes.INTERNAL_ERROR, "Internal error. Operations " + operations + " left run stack with " + runStack);        	
-	        }
+        	case RELATION:
+        	case LIST:
+        	case VARIABLE:
+        	default: 
+        		throw new PixyException(PixyErrorCodes.INTERNAL_ERROR, "Unhandled operation: " + op + ". Run stack: " + runStack);
+        	}
 		}
 		
-		return ans;
+        if (runStack.size() == 1) {
+        	ans = runStack.pop();
+        } else {
+            throw new PixyException(PixyErrorCodes.INTERNAL_ERROR, "Internal error. Operations " + operations + " left run stack with " + runStack);        	
+        }
+
+        return ans;
     }
 
     private Object convertToRuntimeObject(String namedStep, Object curEnd) {
 		if (curEnd == null) { 
-			throw new PixyException(PixyErrorCodes.COALESCE_FAILURE, "PixyEvalPipe encountered null in named step " + namedStep); 
-		} else if (PixyDatum.isNumber(curEnd)) {
+			throw new PixyException(PixyErrorCodes.COALESCE_FAILURE, "PixyEvalPipe encountered null in named step " + namedStep);
+		}
+		
+		if (curEnd instanceof Property) {
+			curEnd = ((Property)curEnd).value();
+		}
+
+		if (PixyDatum.isNumber(curEnd)) {
 			return PixyDatum.convertToBigDecimal(curEnd);
 		} else {
 	    	return curEnd;
@@ -165,7 +129,7 @@ public class PixyEvalPipe<S, T> extends AbstractPipe<S, T> implements TransformP
     }
 
     public String toString() {
-    	return PipeHelper.makePipeString(this, this.operations.toArray());
+    	return StringFactory.stepString(this, this.operations);
     }
     
     private interface EvalOperation {

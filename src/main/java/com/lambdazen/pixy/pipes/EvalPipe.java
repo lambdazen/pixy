@@ -4,13 +4,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyDatum;
 import com.lambdazen.pixy.PixyPipe;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
 
-public class EvalPipe implements PixyPipe, InternalLookupPipe {
+public class EvalPipe<S, E> implements PixyPipe, InternalLookupPipe {
 	private String outNamedStep;
 	private List<PixyDatum> ops;
 
@@ -25,11 +26,11 @@ public class EvalPipe implements PixyPipe, InternalLookupPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {	
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {	
 		if (outNamedStep == null) {
-			return GremlinPipelineExt.pixyEval(inputPipe, ops);
+			return GraphTraversalExt.pixyEval(inputPipe, ops);
 		} else {
-			return GremlinPipelineExt.pixyEval(inputPipe, ops).as(outNamedStep);
+			return GraphTraversalExt.pixyEval(inputPipe, ops).as(outNamedStep);
 		}
 	}
 

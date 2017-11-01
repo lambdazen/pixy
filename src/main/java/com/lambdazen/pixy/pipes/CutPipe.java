@@ -1,9 +1,10 @@
 package com.lambdazen.pixy.pipes;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyPipe;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
 
 public class CutPipe implements PixyPipe {
 	// The outStep is mandatory -- so CutPipe doesn't implement NamedOutputStep
@@ -18,8 +19,8 @@ public class CutPipe implements PixyPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
-		return GremlinPipelineExt.pixyCut(inputPipe).as(outStep);
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
+		return GraphTraversalExt.pixyCut(inputPipe).as(outStep);
 	}
 
 	@Override

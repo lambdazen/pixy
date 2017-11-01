@@ -3,9 +3,10 @@ package com.lambdazen.pixy.pipes;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyPipe;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
 
 public class ConnectPipe implements PixyPipe, InternalLookupPipe {
 	PixyPipe fromPipe;
@@ -30,8 +31,8 @@ public class ConnectPipe implements PixyPipe, InternalLookupPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
-		GremlinPipeline ans = inputPipe;
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
+		GraphTraversal ans = inputPipe;
 		
 		ans = fromPipe.pixyStep(ans);
 		ans = toPipe.pixyStep(ans);

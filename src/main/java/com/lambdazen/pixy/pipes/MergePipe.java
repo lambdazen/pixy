@@ -7,11 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyPipe;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
-import com.tinkerpop.pipes.util.Pipeline;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
 
 public class MergePipe implements PixyPipe, InternalLookupPipe {	
 	List<PixyPipe> orPipes;
@@ -53,17 +54,17 @@ public class MergePipe implements PixyPipe, InternalLookupPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
-		GremlinPipeline ans = inputPipe;
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
+		GraphTraversal ans = inputPipe;
 		
-		List<Pipeline> pipesToMerge = new ArrayList<Pipeline>();
+		List<GraphTraversal> pipesToMerge = new ArrayList<GraphTraversal>();
 		
 		for (PixyPipe pixyPipe : orPipes) {
-			GremlinPipeline pipeline = pixyPipe.pixyStep(new GremlinPipeline()._());
+			GraphTraversal pipeline = pixyPipe.pixyStep(__());
 			pipesToMerge.add(pipeline);
 		}
 		
-		ans = GremlinPipelineExt.pixySplitMerge(ans, pipesToMerge);
+		ans = GraphTraversalExt.pixySplitMerge(ans, pipesToMerge);
 		
 		for (String namedStep : mergeVarsMap.keySet()) {
 			if ((lastNamedOutputStep == null) || !(namedStep.equals(lastNamedOutputStep))) {
@@ -79,7 +80,7 @@ public class MergePipe implements PixyPipe, InternalLookupPipe {
 		return ans;
 	}
 
-	private GremlinPipeline pixyCoalesce(GremlinPipeline pipeline, String namedStep) {
+	private GraphTraversal pixyCoalesce(GraphTraversal pipeline, String namedStep) {
 		List<String> mergeVars = new ArrayList<String>(mergeVarsMap.get(namedStep));
 		Collections.reverse(mergeVars);
 		
@@ -89,11 +90,11 @@ public class MergePipe implements PixyPipe, InternalLookupPipe {
 				return pipeline;
 			} else {
 				// Just the coalesce
-				return GremlinPipelineExt.coalesce(pipeline, mergeVars);
+				return GraphTraversalExt.coalesce(pipeline, mergeVars.toArray(new String[0]));
 			}
 		} else {
 			// Coalesce and as
-			return GremlinPipelineExt.coalesce(pipeline, mergeVars).as(namedStep);
+			return GraphTraversalExt.coalesce(pipeline, mergeVars.toArray(new String[0])).as(namedStep);
 		}
 	}
 

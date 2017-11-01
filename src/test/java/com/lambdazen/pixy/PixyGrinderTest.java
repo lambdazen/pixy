@@ -4,19 +4,25 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import com.lambdazen.bitsy.BitsyGraph;
 import com.lambdazen.pixy.PixyGrinder;
 import com.lambdazen.pixy.PixyPipe;
 import com.lambdazen.pixy.PixyTheory;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Vertex;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
-import com.tinkerpop.pipes.PipeFunction;
-import com.tinkerpop.pipes.util.structures.Row;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
 
 import junit.framework.TestCase;
 
@@ -244,7 +250,7 @@ public class PixyGrinderTest extends TestCase {
 	public void setUp() {
 		//graph = new BitsyGraph(Paths.get("C:/sridhar/temp/kennedy"));
 		graph = new BitsyGraph();
-		graph.createKeyIndex("name", Vertex.class);
+		((BitsyGraph)graph).<Vertex>createKeyIndex("name", Vertex.class);
 		
 		loadGraph();
 	}
@@ -259,23 +265,21 @@ public class PixyGrinderTest extends TestCase {
 	
 	public void loadGraph() {
 		for (String[] kennedy : KENNEDY_FAMILY_TREE) {
-			Vertex v = graph.addVertex(null);
-			
-			v.setProperty("name", kennedy[0]);
-			v.setProperty("sex", kennedy[1]);
-			v.setProperty("born", new Integer(kennedy[2]));
+			Vertex v = graph.addVertex("name", kennedy[0],
+					"sex", kennedy[1], 
+					"born", new Integer(kennedy[2]));
 			
 			if (kennedy[3] != null) {
-				v.setProperty("died", new Integer(kennedy[3]));
+				v.property("died", new Integer(kennedy[3]));
 			}
 			
 			if (kennedy[4] != null) {
-				v.setProperty("nickname", kennedy[4]);
+				v.property("nickname", kennedy[4]);
 			}
 		}
 		
 		for (String[] kennedy : KENNEDY_FAMILY_TREE) {
-			Vertex v = graph.getVertices("name", kennedy[0]).iterator().next();
+			Vertex v = graph.verticesByIndex("name", kennedy[0]).next();
 			
 			assertTrue(v != null);
 			
@@ -284,21 +288,21 @@ public class PixyGrinderTest extends TestCase {
 			addRelationship(v, "wife", kennedy[7]);
 		}
 		
-		graph.commit();		
+		graph.tx().commit();		
 	}
 
 	private void addRelationship(Vertex v, String label, String name) {
 		if (name != null) {
 			try {
-				Vertex other = graph.getVertices("name", name).iterator().next();			
+				Vertex other = graph.verticesByIndex("name", name).next();			
 				assertTrue(other != null);
 			
 				if (label.equals("father")) {
-					assertEquals("for " + name, "male", other.getProperty("sex"));
+					assertEquals("for " + name, "male", other.property("sex").value());
 				} else if (label.equals("mother")) {
-					assertEquals("for " + name, "female", other.getProperty("sex"));
+					assertEquals("for " + name, "female", other.property("sex").value());
 				} else if (label.equals("wife")) {
-					assertEquals("for " + name + " with " + other.getProperty("sex").getClass(), "female", other.getProperty("sex"));
+					assertEquals("for " + name + " with " + other.property("sex").getClass(), "female", other.property("sex").value());
 				}
 	
 				v.addEdge(label, other);
@@ -315,7 +319,11 @@ public class PixyGrinderTest extends TestCase {
 	public void testRelationshipsComplex() {
 		testRelationships(false);
 	}
-	
+
+	private GraphTraversal gtFromIter(Iterator iter) {
+		return inject(IteratorUtils.asList(iter)).unfold();
+	}
+
 	public void testRelationships(boolean shortRules) {
 		// Go through various conditions
 		
@@ -330,18 +338,18 @@ public class PixyGrinderTest extends TestCase {
 		PixyPipe pp = pg.convertQueryToPipe("father($c, &f)");
 
 		// Father
-		GremlinPipeline pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.").as("c");
+		GraphTraversal pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr.")).as("c");
 		pipeline = pp.pixyStep(pipeline);
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
 		Vertex v = (Vertex)pipeline.next();
-		assertEquals("Joseph Patrick Kennedy, Sr.", v.getProperty("name"));
+		assertEquals("Joseph Patrick Kennedy, Sr.", v.property("name").value());
 
 		// Mother -- reverse
-		pipeline = new GremlinPipeline(graph).V("name", "Rose Elizabeth Fitzgerald");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Rose Elizabeth Fitzgerald"));
 		pp = pt.makePipe("mother(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 
@@ -357,9 +365,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Husband -- reverse
-		pipeline = new GremlinPipeline(graph).V("name", "Jacqueline Lee Bouvier");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Jacqueline Lee Bouvier"));
 		pp = pt.makePipe("husband(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		assertEquals("John Fitzgerald Kennedy, Sr.", pipeline.next());
@@ -384,9 +392,9 @@ public class PixyGrinderTest extends TestCase {
 		runSpouseTests(pt);
 		runParentTests(pt);
 		
-		pipeline = new GremlinPipeline(graph).V("name", "Jacqueline Lee Bouvier");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Jacqueline Lee Bouvier"));
 		pp = pt.makePipe("parent(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		assertEquals("Caroline Bouvier Kennedy", pipeline.next());
@@ -397,9 +405,9 @@ public class PixyGrinderTest extends TestCase {
 		pt = pt.extend("grandparent(Child, GrandParent) :- parent(Child, Father), parent(Father, GrandParent).");
 
 		// Grandparents of JFK Jr.
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Jr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Jr."));
 		pp = pt.makePipe("grandparent($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		assertEquals("Janet Lee Bouvier", pipeline.next());
@@ -409,9 +417,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Grandchildren of Rose Elizabeth Fitzgerald 
-		pipeline = new GremlinPipeline(graph).V("name", "Rose Elizabeth Fitzgerald");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Rose Elizabeth Fitzgerald"));
 		pp = pt.makePipe("grandparent(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -438,9 +446,9 @@ public class PixyGrinderTest extends TestCase {
 				"son(Parent, Child) :- parent(Child, Parent), property(Child, 'sex', 'male').");
 		
 		// Daughters of Rose
-		pipeline = new GremlinPipeline(graph).V("name", "Rose Elizabeth Fitzgerald");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Rose Elizabeth Fitzgerald"));
 		pp = pt.makePipe("daughter($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -452,10 +460,10 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Father and mother of JFK Sr.
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("son(&p, $)");
 		pipeline = pp.pixyStep(pipeline);
-		pipeline = GremlinPipelineExt.coalesce(pipeline, "p").property("name").order();
+		pipeline = GraphTraversalExt.coalesce(pipeline, "p").properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -464,9 +472,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Sons of JFK Sr.
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.").as("p");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr.")).as("p");
 		pp = pt.makePipe("son($p, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -476,9 +484,9 @@ public class PixyGrinderTest extends TestCase {
 		// Siblings of JFK Sr.
 		pt = pt.extend("sibling(Person1, Person2) :- father(Person1, Parent), father(Person2, Parent), Person1 \\= Person2. ");
 		
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("sibling($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 
@@ -499,9 +507,9 @@ public class PixyGrinderTest extends TestCase {
               + "sister(Person1, Person2) :- sibling(Person1, Person2), property(Person2, 'sex', 'female').");
 
 		// People to whom JFK Sr. is a brother 
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("brother(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -516,9 +524,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// JFK Sr's brothers
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("brother($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -528,9 +536,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// RFK Sr's sisters
-		pipeline = new GremlinPipeline(graph).V("name", "Robert Francis Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Robert Francis Kennedy, Sr."));
 		pp = pt.makePipe("sister($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -542,10 +550,10 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// JFK Sr.'s younger brothers 
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.extend("youngerBrother(X, Y) :- brother(X, Y), property(X, 'born', BX), property(Y, 'born', BY), BY > BX. ")
 				.makePipe("youngerBrother($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -554,12 +562,12 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// RFK Sr.'s older sisters 
-		pipeline = new GremlinPipeline(graph).V("name", "Robert Francis Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Robert Francis Kennedy, Sr."));
 
 		// duplicating property(X, 'born', BX) to test matching of value in property 
 		pp = pt.extend("olderSister(X, Y) :- sister(X, Y), property(X, 'born', BX), property(X, 'born', BX), property(Y, 'born', BY), BY < BX. ")
 				.makePipe("olderSister($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -576,10 +584,10 @@ public class PixyGrinderTest extends TestCase {
 			+	"sisterInLaw(Person, SIL) :- spouse(Person, Spouse), sister(Spouse, SIL). "
 			+	"sisterInLaw(Person, SIL) :- sibling(Person, Sister), wife(Sister, SIL). ");
 		
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.extend("bOrSIL(X, Y) :- brotherInLaw(X, Y). bOrSIL(X, Y) :- sisterInLaw(X, Y). ")
 				.makePipe("bOrSIL($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -598,9 +606,9 @@ public class PixyGrinderTest extends TestCase {
 				+ "nephew(Person, Nephew) :- sibling(Person, Sibling), son(Sibling, Nephew)."); 	
 
 		// Dead nephews of Teddy Kennedy
-		pipeline = new GremlinPipeline(graph).V("name", "Edward Moore Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Edward Moore Kennedy, Sr."));
 		pp = pt.extend("deadNephew(Person, Nephew) :- nephew(Person, Nephew), property(Nephew, 'died', _), property(Person, 'died', _).").makePipe("deadNephew($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -608,9 +616,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Nieces of JFK Sr.
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("niece($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -622,18 +630,18 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// People to whom JFK Sr. is an aunt
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("aunt(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
 		assertFalse(pipeline.hasNext());
 
 		// People to whom JFK Sr. is an uncle
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("uncle(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -654,9 +662,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Same as before, but with a cut
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.extend("funcle(X, Y) :- uncle(Z, Y), !, uncle(X, Y). ").makePipe("funcle(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -677,9 +685,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Same as before, but with an expanded defn of uncle
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.extend("funcle(X, Y) :- uncle(Z, Y), !, parent(X, T), brother(T, Y). ").makePipe("funcle(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -715,9 +723,9 @@ public class PixyGrinderTest extends TestCase {
               );
 		
 		// Is Rose Marie Kennedy child less?
-		pipeline = new GremlinPipeline(graph).V("name", "Rose Marie Kennedy");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Rose Marie Kennedy"));
 		pp = pt.makePipe("childless($)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		
@@ -727,9 +735,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 		
 		// Childless aunts of JFK Jr
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Jr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Jr."));
 		pp = pt.extend("clAunt(X, Y) :- aunt(X, Y), childless(Y). ").makePipe("clAunt($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 
@@ -739,9 +747,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 		
 		// Living nephews of Teddy Kennedy
-		pipeline = new GremlinPipeline(graph).V("name", "Edward Moore Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Edward Moore Kennedy, Sr."));
 		pp = pt.extend("livingNephew(Person, Nephew) :- nephew(Person, Nephew), living(Nephew).").makePipe("livingNephew($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 
@@ -763,9 +771,9 @@ public class PixyGrinderTest extends TestCase {
 			+   "survivorSub(Person, Survivor) :- grandparent(Survivor, Person). ");
 
 		// Survivors of JFK Sr
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("survivor($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 			 
@@ -776,16 +784,16 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Survivors of Joseph Patrick Kennedy, Jr.
-		pipeline = new GremlinPipeline(graph).V("name", "Joseph Patrick Kennedy, Jr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Joseph Patrick Kennedy, Jr."));
 		pp = pt.makePipe("survivor($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 
 		assertFalse(pipeline.hasNext());
 
 		// Recursion test
-		pipeline = new GremlinPipeline(graph).V("name", "Joseph Patrick Kennedy, Jr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Joseph Patrick Kennedy, Jr."));
 
 		try {
 			pp = pt.extend("one(Y, X) :- two(X, Y). two(X, Y) :- two(Y). two(Y) :- one(X, Y). ").makePipe("two($, &)");
@@ -796,9 +804,9 @@ public class PixyGrinderTest extends TestCase {
 
 		// Descendents of Hilda Shriver
 		pt = pt.extend("descendant(Person, Descendant) :- inLoop(Person, ['father', 'mother'], Descendant).");
-		pipeline = new GremlinPipeline(graph).V("name", "Hilda Shriver");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Hilda Shriver"));
 		pp = pt.makePipe("descendant($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);		
 
@@ -811,9 +819,9 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// People to whom Timothy Perry Shriver is a descendant
-		pipeline = new GremlinPipeline(graph).V("name", "Timothy Perry Shriver");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Timothy Perry Shriver"));
 		pp = pt.makePipe("descendant(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);		
 
@@ -826,9 +834,9 @@ public class PixyGrinderTest extends TestCase {
 
 		// Run the same query using ancestor
 		pt = pt.extend("ancestor(Person, Descendant) :- outLoop(Person, ['father', 'mother'], Descendant).");
-		pipeline = new GremlinPipeline(graph).V("name", "Timothy Perry Shriver");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Timothy Perry Shriver"));
 		pp = pt.makePipe("ancestor($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);		
 
@@ -849,9 +857,9 @@ public class PixyGrinderTest extends TestCase {
 				"buggy_people(Person, GrandParent) :- ancestors_not_grandparents(Person, GrandParent). "
 				);
 		
-		pipeline = new GremlinPipeline(graph).V();
+		pipeline = graph.traversal().V();
 		pp = ptTemp.makePipe("buggy_people($, &)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);		
 
@@ -872,7 +880,7 @@ public class PixyGrinderTest extends TestCase {
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);		
 
-		pipeline = new GremlinPipeline(graph).V().as("p");
+		pipeline = graph.traversal().V().as("p");
 		pp = ptTemp.makePipe("buggy_people($, &g)");
 		pipeline = pp.pixyStep(pipeline);
 		
@@ -881,11 +889,11 @@ public class PixyGrinderTest extends TestCase {
 
 	private void runParentTests(PixyTheory pt) {
 		PixyPipe pp;
-		GremlinPipeline pipeline;
+		GraphTraversal pipeline;
 		// Parent tests
-		pipeline = new GremlinPipeline(graph).V("name", "Jacqueline Lee Bouvier").as("c");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Jacqueline Lee Bouvier")).as("c");
 		pp = pt.makePipe("parent($c, &p)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		assertEquals("Janet Lee Bouvier", pipeline.next());
@@ -895,19 +903,27 @@ public class PixyGrinderTest extends TestCase {
 
 	private void runSpouseTests(PixyTheory pt) {
 		PixyPipe pp;
-		GremlinPipeline pipeline;
+		GraphTraversal pipeline;
 		// Spouse tests
-		pipeline = new GremlinPipeline(graph).V("name", "Jacqueline Lee Bouvier");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Jacqueline Lee Bouvier"));
 		pp = pt.makePipe("spouse(&, $)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		assertEquals("John Fitzgerald Kennedy, Sr.", pipeline.next());
 		assertFalse(pipeline.hasNext());
 		
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.").as("w");
+		System.out.println("Starting now");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr.")).map(new Function() {
+    		@Override
+			public Object apply(Object o) {
+    			Object x = ((Traverser)o).get();
+    			System.out.println("Processing L0: " + x);
+				return x;
+			}
+    	}).as("w");
 		pp = pt.makePipe("spouse(&h, $w)");
-		pipeline = pp.pixyStep(pipeline).property("name").order();
+		pipeline = pp.pixyStep(pipeline).properties("name").value().order();
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 		assertEquals("Jacqueline Lee Bouvier", pipeline.next());
@@ -938,9 +954,9 @@ public class PixyGrinderTest extends TestCase {
 				"testInOutBoth(Vin, Vout) :- testBoth2(Vin, Vout)."
 				);
 		
-		GremlinPipeline pipeline = new GremlinPipeline(graph).E()
+		GraphTraversal pipeline = graph.traversal().E()
 			.as("e").inV().as("xvin");
-		pipeline = GremlinPipelineExt.coalesce(pipeline, "e").outV().as("xvout");
+		pipeline = GraphTraversalExt.coalesce(pipeline, "e").outV().as("xvout");
 		PixyPipe pp = pt.makePipe("testInOutBoth($xvin, $xvout)");
 		pipeline = pp.pixyStep(pipeline);
 		
@@ -970,13 +986,14 @@ public class PixyGrinderTest extends TestCase {
 				"testInOutBoth(Vin, Label, Vout) :- testBoth2(Vin, Label, Vout)."
 				);
 		
-		pipeline = new GremlinPipeline(graph).E().filter(new PipeFunction<Edge, Boolean>() {
+		pipeline = graph.traversal().E().filter(new Predicate<Traverser<Edge>>() {
 			@Override
-			public Boolean compute(Edge e) {
-				return e.getLabel().equals("father");
+			public boolean test(Traverser<Edge> e) {
+				// TODO Auto-generated method stub
+				return e.get().label().equals("father");
 			}
 		}).as("e").inV().as("vin");
-		pipeline = GremlinPipelineExt.coalesce(pipeline, "e").outV().as("vout");
+		pipeline = GraphTraversalExt.coalesce(pipeline, "e").outV().as("vout");
 		pp = pt.makePipe("testInOutBoth($vin, ?, $vout)", "father");
 		pipeline = pp.pixyStep(pipeline);
 		
@@ -1006,7 +1023,7 @@ public class PixyGrinderTest extends TestCase {
 				"testEqAndNotEq(V1, V2) :- testEqAndNotEqB(V1, V2)."
 				);
 		
-		pipeline = new GremlinPipeline(graph).V().as("v");
+		pipeline = graph.traversal().V().as("v");
 		pp = pt.makePipe("testEqAndNotEq($, $v)");
 		pipeline = pp.pixyStep(pipeline);
 		
@@ -1038,7 +1055,7 @@ public class PixyGrinderTest extends TestCase {
 		}
 
 		// Test int functions
-		pipeline = new GremlinPipeline(numbers)._().scatter();
+		pipeline = __(numbers).unfold();
 		pp = pt.makePipe("function($, &)");
 		pipeline = pp.pixyStep(pipeline);
 		
@@ -1058,7 +1075,7 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 		
 		// Test FP functions
-		pipeline = new GremlinPipeline(fpNumbers)._().scatter();
+		pipeline = __(fpNumbers).unfold();
 		pp = pt.makePipe("fpFunction($, &)");
 		pipeline = pp.pixyStep(pipeline);
 		
@@ -1077,14 +1094,16 @@ public class PixyGrinderTest extends TestCase {
 		assertFalse(pipeline.hasNext());
 
 		// Overlap tests for boolean expressions
-		pipeline = new GremlinPipeline(intNumbers)._().transform(new PipeFunction() {
+		pipeline = __(intNumbers).unfold().map(new Function() {
 			@Override
-			public Object compute(Object x) {
-				return new Long(((Integer)x).intValue());
+			public Object apply(Object x) {
+				Traverser t = (Traverser)x;
+				Integer intVal = (Integer)t.get();
+				return new Long(intVal.intValue());
 			}
-		}).scatter().as("n");
+		}).as("n"); 
 		pp = pt.makePipe("overlap($, ?, ?)", 10, 50);
-		pipeline = GremlinPipelineExt.coalesce(pp.pixyStep(pipeline), "n");
+		pipeline = GraphTraversalExt.coalesce(pp.pixyStep(pipeline), "n");
 
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
@@ -1094,9 +1113,9 @@ public class PixyGrinderTest extends TestCase {
 		}
 		assertFalse(pipeline.hasNext());
 		
-		pipeline = new GremlinPipeline(intNumbers)._().scatter().as("n");
+		pipeline = __(intNumbers).unfold().as("n");
 		pp = pt.makePipe("overlap($, ?, ?)", 70, 0);
-		pipeline = GremlinPipelineExt.coalesce(pp.pixyStep(pipeline), "n");
+		pipeline = GraphTraversalExt.coalesce(pp.pixyStep(pipeline), "n");
 
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
@@ -1106,9 +1125,9 @@ public class PixyGrinderTest extends TestCase {
 		}
 		assertFalse(pipeline.hasNext());
 
-		pipeline = new GremlinPipeline(intNumbers)._().scatter().as("n");
+		pipeline = __(intNumbers).unfold().as("n");
 		pp = pt.makePipe("overlapStr($, ?, ?, _)", 10, 50);
-		pipeline = GremlinPipelineExt.coalesce(pp.pixyStep(pipeline), "n");
+		pipeline = GraphTraversalExt.coalesce(pp.pixyStep(pipeline), "n");
 		for (int exp = 2; exp <= 5; exp++) {
 			assertEquals(new Integer(exp), pipeline.next());
 		}
@@ -1117,9 +1136,9 @@ public class PixyGrinderTest extends TestCase {
 		}
 		assertFalse(pipeline.hasNext());
 		
-		pipeline = new GremlinPipeline(intNumbers)._().scatter().as("n");
+		pipeline = __(intNumbers).unfold().as("n"); 
 		pp = pt.makePipe("overlapStr($, ?, ?, _)", 70, 57);
-		pipeline = GremlinPipelineExt.coalesce(pp.pixyStep(pipeline), "n");
+		pipeline = GraphTraversalExt.coalesce(pp.pixyStep(pipeline), "n");
 
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
@@ -1139,25 +1158,25 @@ public class PixyGrinderTest extends TestCase {
 				"    property(V, 'died', Died)," + 
 				"    property(V, 'nickname', Nickname).");
 
-		pipeline = new GremlinPipeline(graph).V("name", "John Fitzgerald Kennedy, Sr.");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "John Fitzgerald Kennedy, Sr."));
 		pp = pt.makePipe("person($, &sex, &born, &died, &nickname)");
-		pipeline = pp.pixyStep(pipeline).select(Arrays.asList(new String[] {"sex", "born", "died", "nickname"}));
+		pipeline = pp.pixyStep(pipeline).select("sex", "born", "died", "nickname");
 
 		System.out.println("Pixy pipe: " + pp);
 		System.out.println("Pipeline: " + pipeline);
 
-		Row row = (Row)pipeline.next();
-		assertEquals("Jack", row.getColumn("nickname"));
-		assertEquals(new Integer(1917), row.getColumn("born"));
-		assertEquals(new Integer(1963), row.getColumn("died"));
-		assertEquals("male", row.getColumn("sex"));
+		Map row = (Map)pipeline.next();
+		assertEquals("Jack", row.get("nickname"));
+		assertEquals(new Integer(1917), row.get("born"));
+		assertEquals(new Integer(1963), row.get("died"));
+		assertEquals("male", row.get("sex"));
 
 		assertFalse(pipeline.hasNext());
 		
 		// Try with Carolyn Jeanne Bessette -- no nickname
-		pipeline = new GremlinPipeline(graph).V("name", "Carolyn Jeanne Bessette");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Carolyn Jeanne Bessette"));
 		pp = pt.makePipe("person($, &sex, &born, &died, &nickname)");
-		pipeline = pp.pixyStep(pipeline).select(Arrays.asList(new String[] {"sex", "born", "died", "nickname"}));
+		pipeline = pp.pixyStep(pipeline).select("sex", "born", "died", "nickname");
 
 		assertFalse(pipeline.hasNext());
 		
@@ -1170,29 +1189,29 @@ public class PixyGrinderTest extends TestCase {
 				"    property(V, 'nickname', Nickname, '').");
 
 		// Try again for Carolyn
-		pipeline = new GremlinPipeline(graph).V("name", "Carolyn Jeanne Bessette");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Carolyn Jeanne Bessette"));
 		pp = pt.makePipe("person($, &sex, &born, &died, &nickname)");
-		pipeline = pp.pixyStep(pipeline).select(Arrays.asList(new String[] {"sex", "born", "died", "nickname"}));
+		pipeline = pp.pixyStep(pipeline).select("sex", "born", "died", "nickname");
 
-		row = (Row)pipeline.next();
-		assertEquals("", row.getColumn("nickname"));
-		assertEquals(new Integer(1966), row.getColumn("born"));
-		assertEquals(new Integer(1999), row.getColumn("died"));
-		assertEquals("female", row.getColumn("sex"));
+		row = (Map)pipeline.next();
+		assertEquals("", row.get("nickname"));
+		assertEquals(new Integer(1966), row.get("born"));
+		assertEquals(new Integer(1999), row.get("died"));
+		assertEquals("female", row.get("sex"));
 
 		assertFalse(pipeline.hasNext());
 
 		// Try again for Timothy Perry Shriver
-		pipeline = new GremlinPipeline(graph).V("name", "Timothy Perry Shriver");
+		pipeline = gtFromIter(graph.verticesByIndex("name", "Timothy Perry Shriver"));
 		pp = pt.makePipe("person($, &sex, &born, &died, &nickname)");
-		pipeline = pp.pixyStep(pipeline).select(Arrays.asList(new String[] {"sex", "born", "died", "nickname"}));
+		pipeline = pp.pixyStep(pipeline).select("sex", "born", "died", "nickname");
 
-		row = (Row)pipeline.next();
-		assertEquals("", row.getColumn("nickname"));
-		assertEquals(new Integer(1959), row.getColumn("born"));
+		row = (Map)pipeline.next();
+		assertEquals("", row.get("nickname"));
+		assertEquals(new Integer(1959), row.get("born"));
 		// TODO: Allow non-BigDecimal but numeric, defaults
-		assertEquals(new BigDecimal(0), row.getColumn("died"));
-		assertEquals("male", row.getColumn("sex"));
+		assertEquals(new BigDecimal(0), row.get("died"));
+		assertEquals("male", row.get("sex"));
 
 		assertFalse(pipeline.hasNext());		
 
@@ -1217,7 +1236,7 @@ public class PixyGrinderTest extends TestCase {
 				"    property(Person, 'born', Born), " + 
 				"    property(Person, 'died', Died). ");
 
-		pipeline = new GremlinPipeline(graph).V();
+		pipeline = graph.traversal().V();
 		pp = pt.makePipe("invalidPerson($)");
 		pipeline = pp.pixyStep(pipeline);
 
@@ -1280,7 +1299,7 @@ public class PixyGrinderTest extends TestCase {
 				"testLoops(Person) :- bothTest(Person). "
 				);
 
-		pipeline = new GremlinPipeline(graph).V();
+		pipeline = graph.traversal().V();
 		pp = pt.makePipe("testLoops($)");
 		pipeline = pp.pixyStep(pipeline);
 

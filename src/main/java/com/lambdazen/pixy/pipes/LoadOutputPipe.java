@@ -1,9 +1,10 @@
 package com.lambdazen.pixy.pipes;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyPipe;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
 
 public class LoadOutputPipe implements PixyPipe, NamedInputPipe {
 	private String namedStep;
@@ -17,11 +18,11 @@ public class LoadOutputPipe implements PixyPipe, NamedInputPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
 		if (namedStep == null) {
 			return inputPipe;
 		} else {
-			return GremlinPipelineExt.coalesce(inputPipe, namedStep);
+			return GraphTraversalExt.coalesce(inputPipe, namedStep);
 		}
 	}
 

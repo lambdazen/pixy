@@ -1,10 +1,16 @@
 package com.lambdazen.pixy.pipes;
 
+import java.util.function.Function;
+import java.util.function.Predicate;
+
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.structure.Property;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyPipe;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
-import com.tinkerpop.pipes.PipeFunction;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
 
 public class PropertyPipe implements PixyPipe, NamedInputPipe, NamedOutputPipe {
 	private String inStep;
@@ -27,30 +33,33 @@ public class PropertyPipe implements PixyPipe, NamedInputPipe, NamedOutputPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
-		GremlinPipeline ans = inputPipe;
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
+		GraphTraversal ans = inputPipe;
 
 		if (inStep != null) {
-			ans = GremlinPipelineExt.coalesce(ans, inStep);
+			ans = GraphTraversalExt.coalesce(ans, inStep);
 		}
 		
 		if (defaultValue == null) {
 			// Without default
-			ans = ans.property(key).filter(new PipeFunction() {
+			ans = ans.properties(key).value().filter(new Predicate<Traverser<Property>>() {
 				@Override
-				public Boolean compute(Object x) {
-					return (x != null);
+				public boolean test(Traverser x) {
+					return x.get() != null;
 				}
-				
 			});
 		} else {
 			// With default
-			ans = ans.property(key).transform(new PipeFunction() {
+			ans = ans.optional(__.properties(key)).map(new Function<Traverser, Object>() {
 				@Override
-				public Object compute(Object x) {
-					return (x == null) ? defaultValue : x;
+				public Object apply(Traverser t) {
+					Object x = t.get();
+					if (x instanceof Property) {
+						return ((Property)x).value();
+					} else {
+						return defaultValue;
+					}
 				}
-				
 			});
 		}
 

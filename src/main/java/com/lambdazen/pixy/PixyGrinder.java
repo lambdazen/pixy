@@ -14,7 +14,7 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.lambdazen.pixy.gremlin.PixySplitMergePipe;
+import com.lambdazen.pixy.gremlin.PixySplitMergeStep;
 import com.lambdazen.pixy.pipes.*;
 import com.lambdazen.pixy.postprocess.Phase1;
 import com.lambdazen.pixy.postprocess.Phase2;
@@ -262,7 +262,7 @@ public class PixyGrinder {
 						step = new NoopPipe();
 					} else if (bodyItem.isCut()) {
 						// The pixy cut named step is used by the merge to determine if the next clause should be evaluated
-						String varName = varGen.newVariable(PixySplitMergePipe.PIXY_CUT_PREFIX);
+						String varName = varGen.newVariable(PixySplitMergeStep.PIXY_CUT_PREFIX);
 
 						// A cut only lets one match through
 						step = new CutPipe(varName);

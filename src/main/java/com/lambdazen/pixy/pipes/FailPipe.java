@@ -1,9 +1,12 @@
 package com.lambdazen.pixy.pipes;
 
+import java.util.function.Predicate;
+
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyPipe;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
-import com.tinkerpop.pipes.PipeFunction;
 
 public class FailPipe implements PixyPipe {
 	public FailPipe() {
@@ -15,10 +18,10 @@ public class FailPipe implements PixyPipe {
 	}
 
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
-		return inputPipe.filter(new PipeFunction() {
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
+		return inputPipe.filter(new Predicate<Traverser>() {
 			@Override
-			public Boolean compute(Object x) {
+			public boolean test(Traverser ignore) {
 				return false;
 			}
 		});

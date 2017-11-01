@@ -1,15 +1,17 @@
 package com.lambdazen.pixy.pipes;
 
 import java.util.Arrays;
+import java.util.function.Predicate;
+
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 
 import com.lambdazen.pixy.PipeVisitor;
 import com.lambdazen.pixy.PixyErrorCodes;
 import com.lambdazen.pixy.PixyException;
 import com.lambdazen.pixy.PixyPipe;
-import com.lambdazen.pixy.gremlin.GremlinPipelineExt;
-import com.tinkerpop.gremlin.java.GremlinPipeline;
-import com.tinkerpop.pipes.PipeFunction;
-import com.tinkerpop.pipes.branch.LoopPipe.LoopBundle;
+import com.lambdazen.pixy.gremlin.GraphTraversalExt;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 
 /** This pipe implements a wrapper for in, out, both, inE, outE, bothE, inV, outV and bothV */
 public class AdjacentStepPipe implements PixyPipe, NamedInputPipe, NamedOutputPipe {
@@ -38,17 +40,40 @@ public class AdjacentStepPipe implements PixyPipe, NamedInputPipe, NamedOutputPi
 	}
 	
 	@Override
-	public GremlinPipeline pixyStep(GremlinPipeline inputPipe) {
-		GremlinPipeline ans = inputPipe;
+	public GraphTraversal pixyStep(GraphTraversal inputPipe) {
+		GraphTraversal ans = inputPipe;
 
 		if (inStep != null) {
-			ans = GremlinPipelineExt.coalesce(ans, inStep);
+			ans = GraphTraversalExt.coalesce(ans, inStep);
 		}
 
-		if (loopDetails != null) {
+		if (loopDetails == null) {
+			ans = addAdjStep(ans);
+		} else {
+			ans.repeat(addAdjStep(__())).until(new Predicate<Traverser>() {
+				@Override
+				public boolean test(Traverser t) {
+					int length = t.loops();
+					return ((loopDetails.getMaxLoops() != 0) && length >= loopDetails.getMaxLoops());
+				}
+			}).emit(new Predicate<Traverser>() {
+				@Override
+				public boolean test(Traverser t) {
+					int length = t.loops();
+					return length >= loopDetails.getMinLoops();
+				}
+			});
 			ans = ans.as(loopDetails.getLoopVarName());
 		}
 
+		if (outStep != null) {
+			ans = ans.as(outStep);
+		}
+		
+		return ans;
+	}
+
+	private GraphTraversal addAdjStep(GraphTraversal ans) {
 		if (labels == null) {
 			switch (step) {
 			case in:
@@ -120,27 +145,6 @@ public class AdjacentStepPipe implements PixyPipe, NamedInputPipe, NamedOutputPi
 				throw new PixyException(PixyErrorCodes.INTERNAL_ERROR, "Unhandled adjacent step: " + step);
 			}
 		}
-
-		if (loopDetails != null) {
-			ans = ans.loop(loopDetails.getLoopVarName(), new PipeFunction<LoopBundle, Boolean>() {
-				@Override
-				public Boolean compute(LoopBundle lb) { // while closure
-					int length = lb.getLoops() - 1;
-					return ((loopDetails.getMaxLoops() == 0) || length < loopDetails.getMaxLoops());
-				}
-			}, new PipeFunction<LoopBundle, Boolean>() { // emit closure
-				@Override
-				public Boolean compute(LoopBundle lb) {
-					int length = lb.getLoops() - 1;
-					return length >= loopDetails.getMinLoops();
-				}
-			});
-		}
-
-		if (outStep != null) {
-			ans = ans.as(outStep);
-		}
-		
 		return ans;
 	}
 
