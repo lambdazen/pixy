@@ -1,23 +1,7 @@
 package com.lambdazen.pixy.gremlin;
 
-import org.apache.tinkerpop.gremlin.process.traversal.Pop;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.step.ByModulating;
-import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
-import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
-import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.MapStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectStep;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalRing;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
-import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-
 import com.lambdazen.pixy.PixyErrorCodes;
 import com.lambdazen.pixy.PixyException;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +10,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.ByModulating;
+import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalRing;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 public class PixyCoalesceStep extends MapStep implements Scoping, TraversalParent, PathProcessor, ByModulating {
     private TraversalRing<Object, Traversal.Admin> traversalRing = new TraversalRing<Object, Traversal.Admin>();
@@ -48,22 +43,23 @@ public class PixyCoalesceStep extends MapStep implements Scoping, TraversalParen
                 bindings.put(selectKey, TraversalUtil.applyNullable(end, this.traversalRing.next()));
             }
 
-// Commented out of SelectStep by sridhar
-//            else {
-//                this.traversalRing.reset();
-//                return null;
-//            }
+            // Commented out of SelectStep by sridhar
+            //            else {
+            //                this.traversalRing.reset();
+            //                return null;
+            //            }
         }
         this.traversalRing.reset();
 
-		for (String stepName : selectKeys) {
-			Object ans = bindings.get(stepName);
-			if (ans != null) {
-				return ans;
-			}
-		}
+        for (String stepName : selectKeys) {
+            Object ans = bindings.get(stepName);
+            if (ans != null) {
+                return ans;
+            }
+        }
 
-		throw new PixyException(PixyErrorCodes.COALESCE_FAILURE, "Unable to find locate any of the named steps: " + selectKeys);
+        throw new PixyException(
+                PixyErrorCodes.COALESCE_FAILURE, "Unable to find locate any of the named steps: " + selectKeys);
     }
 
     @Override

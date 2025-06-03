@@ -9,7 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
  * @param <E>
  */
 public interface PixyPipe {
-	public GraphTraversal pixyStep(GraphTraversal inputPipe);
-	
-	public void visit(PipeVisitor visitor);
+    public GraphTraversal pixyStep(GraphTraversal inputPipe);
+
+    public void visit(PipeVisitor visitor);
 }
