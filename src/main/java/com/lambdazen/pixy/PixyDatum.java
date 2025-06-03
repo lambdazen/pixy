@@ -1,12 +1,12 @@
 package com.lambdazen.pixy;
 
-import com.igormaznitsa.prologparser.terms.AbstractPrologTerm;
 import com.igormaznitsa.prologparser.terms.PrologAtom;
-import com.igormaznitsa.prologparser.terms.PrologFloatNumber;
-import com.igormaznitsa.prologparser.terms.PrologIntegerNumber;
+import com.igormaznitsa.prologparser.terms.PrologFloat;
+import com.igormaznitsa.prologparser.terms.PrologInt;
 import com.igormaznitsa.prologparser.terms.PrologList;
-import com.igormaznitsa.prologparser.terms.PrologStructure;
-import com.igormaznitsa.prologparser.terms.PrologVariable;
+import com.igormaznitsa.prologparser.terms.PrologStruct;
+import com.igormaznitsa.prologparser.terms.PrologTerm;
+import com.igormaznitsa.prologparser.terms.PrologVar;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -64,8 +64,8 @@ public class PixyDatum {
         this.relTuple = relTuple;
     }
 
-    public PixyDatum(AbstractPrologTerm term) {
-        if ((term instanceof PrologIntegerNumber) || (term instanceof PrologFloatNumber)) {
+    public PixyDatum(PrologTerm term) {
+        if ((term instanceof PrologInt) || (term instanceof PrologFloat)) {
             this.type = PixyDatumType.NUMBER;
             this.num = new BigDecimal(term.getText());
         } else if (term instanceof PrologAtom) {
@@ -83,7 +83,7 @@ public class PixyDatum {
                 this.type = PixyDatumType.STRING;
                 this.str = term.getText();
             }
-        } else if (term instanceof PrologVariable) {
+        } else if (term instanceof PrologVar) {
             this.type = PixyDatumType.VARIABLE;
             this.var = term.getText();
         } else if (term instanceof PrologList) {
@@ -91,10 +91,10 @@ public class PixyDatum {
             this.type = PixyDatumType.LIST;
             this.list = new ArrayList<PixyDatum>();
 
-            while (!pList.isNullList()) {
-                AbstractPrologTerm pHead = pList.getHead();
+            while (!pList.isEmpty()) {
+                PrologTerm pHead = pList.getHead();
 
-                if (pHead instanceof PrologVariable) {
+                if (pHead instanceof PrologVar) {
                     throw new PixyException(
                             PixyErrorCodes.VARIABLES_NOT_SUPPORTED_INSIDE_LISTS,
                             "Encountered variable " + pHead.getText() + " in " + term.toString());
@@ -104,15 +104,15 @@ public class PixyDatum {
 
                 pList = (PrologList) pList.getTail();
             }
-        } else if ((term instanceof PrologStructure) && term.getText().equals("!")) {
+        } else if ((term instanceof PrologStruct) && term.getText().equals("!")) {
             this.type = PixyDatumType.SPECIAL_ATOM;
             this.atom = CUT;
-        } else if (term instanceof PrologStructure) {
+        } else if (term instanceof PrologStruct) {
             this.type = PixyDatumType.RELATION;
             this.relName = term.getText();
             this.relTuple = new ArrayList<PixyDatum>();
 
-            PrologStructure structure = ((PrologStructure) term);
+            PrologStruct structure = ((PrologStruct) term);
 
             // Check for not
             if (relName.equals("not")) {
@@ -123,11 +123,11 @@ public class PixyDatum {
                 }
 
                 // not(something(with, params))
-                AbstractPrologTerm notTerm = structure.getElement(0);
-                if (notTerm instanceof PrologStructure) {
+                PrologTerm notTerm = structure.getTermAt(0);
+                if (notTerm instanceof PrologStruct) {
                     // The relation names of the form not(something) will be handled internally
                     relName = "not(" + notTerm.getText() + ")";
-                    structure = (PrologStructure) notTerm;
+                    structure = (PrologStruct) notTerm;
                 } else {
                     throw new PixyException(
                             PixyErrorCodes.INVALID_NOT_PARAMETERS,
@@ -137,7 +137,7 @@ public class PixyDatum {
 
             // Go over the terms
             for (int idx = 0; idx < structure.getArity(); idx++) {
-                AbstractPrologTerm subStruct = structure.getElement(idx);
+                PrologTerm subStruct = structure.getTermAt(idx);
                 PixyDatum subExpr = new PixyDatum(subStruct);
                 PixyDatumType subExprType = subExpr.getType();
                 if ((subExprType != PixyDatumType.SPECIAL_ATOM)

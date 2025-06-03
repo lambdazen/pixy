@@ -1,7 +1,7 @@
 package com.lambdazen.pixy;
 
-import com.igormaznitsa.prologparser.terms.AbstractPrologTerm;
-import com.igormaznitsa.prologparser.terms.PrologStructure;
+import com.igormaznitsa.prologparser.terms.PrologStruct;
+import com.igormaznitsa.prologparser.terms.PrologTerm;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,16 +68,16 @@ public class PixyClause {
         this.body = body;
     }
 
-    public PixyClause(AbstractPrologTerm term) {
+    public PixyClause(PrologTerm term) {
         this.body = new ArrayList<PixyDatum>();
 
-        assert (term instanceof PrologStructure);
+        assert (term instanceof PrologStruct);
 
-        PrologStructure structure = ((PrologStructure) term);
+        PrologStruct structure = ((PrologStruct) term);
 
         if (structure.getText().equals(":-")) {
-            this.head = new PixyDatum(structure.getElement(0));
-            loadBody(structure.getElement(1));
+            this.head = new PixyDatum(structure.getTermAt(0));
+            loadBody(structure.getTermAt(1));
         } else {
             this.head = new PixyDatum(structure);
         }
@@ -89,19 +89,19 @@ public class PixyClause {
         }
     }
 
-    public void loadBody(AbstractPrologTerm term) {
-        if (term instanceof PrologStructure) {
-            PrologStructure structure = ((PrologStructure) term);
+    public void loadBody(PrologTerm term) {
+        if (term instanceof PrologStruct) {
+            PrologStruct structure = ((PrologStruct) term);
 
             if (structure.getText().equals(",")) {
-                loadBody(structure.getElement(0));
-                loadBody(structure.getElement(1));
+                loadBody(structure.getTermAt(0));
+                loadBody(structure.getTermAt(1));
             } else if (structure.getText().equals("=")) {
-                loadEqualsExpression(structure.getElement(0), structure.getElement(1));
+                loadEqualsExpression(structure.getTermAt(0), structure.getTermAt(1));
             } else if (booleanOps.contains(structure.getText() + "/" + structure.getArity())) {
                 loadBooleanExpression(structure);
             } else if (structure.getText().equals("is")) {
-                loadIsExpression(structure.getElement(0), structure.getElement(1));
+                loadIsExpression(structure.getTermAt(0), structure.getTermAt(1));
             } else if (arithOps.contains(structure.getText() + "/" + structure.getArity())) {
                 throw new PixyException(
                         PixyErrorCodes.OPERATION_NOT_SUPPORTED_IN_CONTEXT,
@@ -119,7 +119,7 @@ public class PixyClause {
         }
     }
 
-    private void loadBooleanExpression(PrologStructure structure) {
+    private void loadBooleanExpression(PrologStruct structure) {
         // The term must be converted to a list
         List<PixyDatum> list = new ArrayList<PixyDatum>();
         convertExpressionToList(structure, list);
@@ -128,7 +128,7 @@ public class PixyClause {
         body.add(new PixyDatum(PixyDatumType.RELATION, "(bool)", Arrays.asList(new PixyDatum[] {param})));
     }
 
-    private void loadIsExpression(AbstractPrologTerm lhsTerm, AbstractPrologTerm rhsTerm) {
+    private void loadIsExpression(PrologTerm lhsTerm, PrologTerm rhsTerm) {
         PixyDatum lhs = new PixyDatum(lhsTerm);
 
         if ((lhs.getType() == PixyDatumType.RELATION) || (lhs.getType() == PixyDatumType.LIST)) {
@@ -145,7 +145,7 @@ public class PixyClause {
         body.add(new PixyDatum(PixyDatumType.RELATION, "(is)", Arrays.asList(params)));
     }
 
-    private void convertExpressionToList(AbstractPrologTerm term, List<PixyDatum> list) {
+    private void convertExpressionToList(PrologTerm term, List<PixyDatum> list) {
         // Convert term to postfix and add it to the list
         switch (term.getType()) {
             case VAR:
@@ -154,14 +154,14 @@ public class PixyClause {
                 break;
 
             case STRUCT:
-                PrologStructure struct = (PrologStructure) term;
+                PrologStruct struct = (PrologStruct) term;
                 int arity = struct.getArity();
                 String operation = struct.getText() + "/" + arity;
 
                 if ((booleanOps.contains(operation)) || (arithOps.contains(operation))) {
                     // This is postfix
                     for (int i = 0; i < arity; i++) {
-                        convertExpressionToList(struct.getElement(i), list);
+                        convertExpressionToList(struct.getTermAt(i), list);
                     }
 
                     list.add(new PixyDatum(PixyDatumType.SPECIAL_ATOM, operation));
@@ -180,7 +180,7 @@ public class PixyClause {
         }
     }
 
-    private void loadEqualsExpression(AbstractPrologTerm lhsTerm, AbstractPrologTerm rhsTerm) {
+    private void loadEqualsExpression(PrologTerm lhsTerm, PrologTerm rhsTerm) {
         PixyDatum lhs = new PixyDatum(lhsTerm);
         PixyDatum rhs = new PixyDatum(rhsTerm);
 

@@ -1,8 +1,12 @@
 package com.lambdazen.pixy;
 
-import com.igormaznitsa.prologparser.PrologCharDataSource;
-import com.igormaznitsa.prologparser.PrologParser;
-import com.igormaznitsa.prologparser.terms.PrologStructure;
+import static com.igormaznitsa.prologparser.ParserContext.FLAG_BLOCK_COMMENTS;
+import static com.igormaznitsa.prologparser.ParserContext.FLAG_CURLY_BRACKETS;
+import static com.igormaznitsa.prologparser.ParserContext.FLAG_ZERO_QUOTATION_CHARCODE;
+
+import com.igormaznitsa.prologparser.DefaultParserContext;
+import com.igormaznitsa.prologparser.GenericPrologParser;
+import com.igormaznitsa.prologparser.terms.PrologTerm;
 import com.lambdazen.pixy.pipemakers.*;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -62,17 +66,16 @@ public class PixyTheory {
             this.rules = new HashMap<String, List<PixyClause>>(oldRules);
         }
 
-        PrologCharDataSource pcds = new PrologCharDataSource(new StringReader(theory));
-        ;
-        PrologParser parser = new PrologParser(null);
-        try {
-            PrologStructure structure;
-            while ((structure = (PrologStructure) parser.nextSentence(pcds)) != null) {
-                PixyClause pc = new PixyClause(structure);
+        try (GenericPrologParser parser = new GenericPrologParser(
+                new StringReader(theory),
+                DefaultParserContext.of(FLAG_BLOCK_COMMENTS | FLAG_ZERO_QUOTATION_CHARCODE | FLAG_CURLY_BRACKETS))) {
+            while (parser.hasNext()) {
+                PrologTerm prologTerm = parser.next();
+                PixyClause pc = new PixyClause(prologTerm);
                 String signature = pc.getRelationSignature();
 
                 if (!rules.containsKey(signature)) {
-                    rules.put(signature, new ArrayList<PixyClause>());
+                    rules.put(signature, new ArrayList<>());
                 }
 
                 rules.get(signature).add(pc);
