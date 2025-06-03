@@ -1,24 +1,22 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>eu.maveniverse.maven.parent</groupId>
+    <artifactId>parent</artifactId>
+    <version>39</version>
+  </parent>
+
   <groupId>com.lambdazen.pixy</groupId>
   <artifactId>pixy</artifactId>
   <version>3.0.0-SNAPSHOT</version>
 
   <name>Pixy Graph Query Language</name>
-  <description>
-    Pixy is a declarative vendor-independent graph query language built on the Tinkerpop software stack
-  </description>
+  <description>Pixy is a declarative vendor-independent graph query language built on the Tinkerpop software stack</description>
 
   <url>https://github.com/lambdazen/pixy/</url>
   <inceptionYear>2013</inceptionYear>
-
-  <scm>
-    <connection>scm:git:https://github.com/lambdazen/pixy.git</connection>
-    <developerConnection>scm:git:https://github.com/lambdazen/pixy.git</developerConnection>
-    <url>https://github.com/lambdazen/pixy/</url>
-  </scm>
 
   <licenses>
     <license>
@@ -27,72 +25,24 @@
     </license>
   </licenses>
 
+  <scm>
+    <connection>scm:git:https://github.com/lambdazen/pixy.git</connection>
+    <developerConnection>scm:git:https://github.com/lambdazen/pixy.git</developerConnection>
+    <tag>HEAD</tag>
+    <url>https://github.com/lambdazen/pixy/</url>
+  </scm>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <!-- versions -->
-    <gremlin.version>3.4.13</gremlin.version>
-    <slf4j.version>1.7.35</slf4j.version>
+    <gremlin.version>3.7.3</gremlin.version>
+    <slf4j.version>1.7.36</slf4j.version>
+
+    <!-- JaCoCo: empty -->
+    <jacocoAgentArg />
   </properties>
-
-  <repositories>
-    <repository>
-      <id>sonatype-snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </repository>
-  </repositories>
-
-  <distributionManagement>
-    <snapshotRepository>
-      <id>sonatype-nexus-snapshots</id>
-      <name>Sonatype Nexus Snapshots</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-    </snapshotRepository>
-    <repository>
-      <id>sonatype-nexus-staging</id>
-      <name>Nexus Release Repository</name>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
-
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.9.0</version>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.7</version>
-      </plugin>
-
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M5</version>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 
   <dependencies>
     <dependency>
@@ -123,8 +73,145 @@
     <dependency>
       <groupId>com.lambdazen.bitsy</groupId>
       <artifactId>bitsy</artifactId>
-      <version>3.5.1-SNAPSHOT</version>
+      <version>3.6.3</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <showDeprecation>true</showDeprecation>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <reuseForks>false</reuseForks>
+            <forkCount>1</forkCount>
+            <failIfNoTests>false</failIfNoTests>
+            <argLine>@{jacocoAgentArg} --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED</argLine>
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+            <systemPropertyVariables>
+              <java.awt.headless>true</java.awt.headless>
+              <java.io.tmpdir>${java.io.tmpdir}</java.io.tmpdir>
+              <build.dir>${project.build.directory}</build.dir>
+            </systemPropertyVariables>
+            <includes>
+              <include>**/*Test.java</include>
+              <include>**/*TestCase.java</include>
+            </includes>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <configuration>
+            <reuseForks>false</reuseForks>
+            <forkCount>1</forkCount>
+            <failIfNoTests>false</failIfNoTests>
+            <argLine>@{jacocoAgentArg} --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED</argLine>
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+            <systemPropertyVariables>
+              <java.awt.headless>true</java.awt.headless>
+              <java.io.tmpdir>${java.io.tmpdir}</java.io.tmpdir>
+              <build.dir>${project.build.directory}</build.dir>
+            </systemPropertyVariables>
+            <includes>
+              <include>**/*IT.java</include>
+              <include>**/*ITCase.java</include>
+              <include>**/*TestSuite.java</include>
+            </includes>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <configuration>
+            <!-- Turn off strict javadoc checks in Java-8 -->
+            <doclint>none</doclint>
+            <!-- Make it less fragile -->
+            <detectLinks>false</detectLinks>
+            <!-- Source == release -->
+            <source>${maven.compiler.release}</source>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>0.8.13</version>
+          <configuration>
+            <propertyName>jacocoAgentArg</propertyName>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+  <profiles>
+    <!--
+    Enable running of integration-tests.
+    -->
+    <profile>
+      <id>run-its</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!--
+    Enable running of coverage reports.
+    -->
+    <profile>
+      <id>coverage</id>
+      <activation>
+        <property>
+          <name>coverage</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>prepare-agent</goal>
+                  <goal>prepare-agent-integration</goal>
+                  <goal>report</goal>
+                  <goal>report-integration</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

@@ -7,36 +7,36 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementExce
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 public class PixyCutStep extends FilterStep {
-	boolean wasCut;
+    boolean wasCut;
 
-	public PixyCutStep(final Traversal.Admin traversal) {
-		super(traversal);
-		this.wasCut = false;
-	}
+    public PixyCutStep(final Traversal.Admin traversal) {
+        super(traversal);
+        this.wasCut = false;
+    }
 
-	@Override
+    @Override
     public void reset() {
         super.reset();
 
-		this.wasCut = false;
+        this.wasCut = false;
     }
 
     @Override
     public String toString() {
         return StringFactory.stepString(this);
     }
-	
-	public boolean wasCut() {
-		return wasCut;
-	}
 
-	@Override
-	protected boolean filter(Traverser.Admin traverser) {
-		if (wasCut) {
-			throw FastNoSuchElementException.instance();
-		} else {
-			wasCut = true;
-			return true;
-		}
-	}
+    public boolean wasCut() {
+        return wasCut;
+    }
+
+    @Override
+    protected boolean filter(Traverser.Admin traverser) {
+        if (wasCut) {
+            throw FastNoSuchElementException.instance();
+        } else {
+            wasCut = true;
+            return true;
+        }
+    }
 }
