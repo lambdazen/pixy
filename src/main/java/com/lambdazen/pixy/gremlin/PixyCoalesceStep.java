@@ -16,13 +16,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.ByModulating;
 import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.MapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ScalarMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalRing;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
-public class PixyCoalesceStep extends MapStep implements Scoping, TraversalParent, PathProcessor, ByModulating {
+public class PixyCoalesceStep extends ScalarMapStep implements Scoping, TraversalParent, PathProcessor, ByModulating {
     private TraversalRing<Object, Traversal.Admin> traversalRing = new TraversalRing<Object, Traversal.Admin>();
     private final List<String> selectKeys;
     private final Set<String> selectKeysSet;

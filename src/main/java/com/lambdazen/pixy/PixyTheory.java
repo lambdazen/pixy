@@ -7,6 +7,7 @@ import static com.igormaznitsa.prologparser.ParserContext.FLAG_ZERO_QUOTATION_CH
 import com.igormaznitsa.prologparser.DefaultParserContext;
 import com.igormaznitsa.prologparser.GenericPrologParser;
 import com.igormaznitsa.prologparser.terms.PrologTerm;
+import com.igormaznitsa.prologparser.tokenizer.Op;
 import com.lambdazen.pixy.pipemakers.*;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -68,7 +69,8 @@ public class PixyTheory {
 
         try (GenericPrologParser parser = new GenericPrologParser(
                 new StringReader(theory),
-                DefaultParserContext.of(FLAG_BLOCK_COMMENTS | FLAG_ZERO_QUOTATION_CHARCODE | FLAG_CURLY_BRACKETS))) {
+                DefaultParserContext.of(
+                        FLAG_BLOCK_COMMENTS | FLAG_ZERO_QUOTATION_CHARCODE | FLAG_CURLY_BRACKETS, Op.SWI))) {
             while (parser.hasNext()) {
                 PrologTerm prologTerm = parser.next();
                 PixyClause pc = new PixyClause(prologTerm);

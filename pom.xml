@@ -53,8 +53,8 @@
 
     <dependency>
       <groupId>com.igormaznitsa</groupId>
-      <artifactId>prologparser</artifactId>
-      <version>2.0.0</version>
+      <artifactId>java-prolog-parser</artifactId>
+      <version>2.2.0</version>
     </dependency>
 
     <dependency>
@@ -67,6 +67,13 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.13.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>${slf4j.version}</version>
       <scope>test</scope>
     </dependency>
 
