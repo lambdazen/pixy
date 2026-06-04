@@ -49,7 +49,7 @@ public class AdjacentStepPipe implements PixyPipe, NamedInputPipe, NamedOutputPi
         if (loopDetails == null) {
             ans = addAdjStep(ans);
         } else {
-            ans.repeat(addAdjStep(__()))
+            ans.repeat(addAdjStep(start()))
                     .until(new Predicate<Traverser>() {
                         @Override
                         public boolean test(Traverser t) {

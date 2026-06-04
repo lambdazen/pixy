@@ -79,6 +79,9 @@ public class PixyDatum {
             } else if (term.getText().equals(TRUE)) {
                 this.type = PixyDatumType.SPECIAL_ATOM;
                 this.atom = TRUE;
+            } else if (term.getText().equals(CUT)) {
+                this.type = PixyDatumType.SPECIAL_ATOM;
+                this.atom = CUT;
             } else {
                 this.type = PixyDatumType.STRING;
                 this.str = term.getText();

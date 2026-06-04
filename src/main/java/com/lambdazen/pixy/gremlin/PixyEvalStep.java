@@ -6,10 +6,11 @@ import com.lambdazen.pixy.PixyException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser.Admin;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -37,7 +38,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
         Object ans = null;
 
         // Execute the operations
-        Stack<Object> runStack = new Stack<Object>();
+        Deque<Object> runStack = new ArrayDeque<Object>();
 
         for (PixyDatum op : operations) {
             switch (op.getType()) {
@@ -67,7 +68,9 @@ public class PixyEvalStep extends PixyCoalesceStep {
                     } else if (op.isFail()) {
                         runStack.push(Boolean.FALSE);
                     } else {
-                        runStack.push(calculate(op.getAtom(), runStack));
+                        Object result = calculate(op.getAtom(), runStack);
+                        if (result == null) return null;
+                        runStack.push(result);
                     }
                     break;
 
@@ -108,7 +111,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
         }
     }
 
-    private Object calculate(String op, Stack<Object> runStack) {
+    private Object calculate(String op, Deque<Object> runStack) {
         EvalOperation evalOp = EVAL_OPS.get(op);
 
         if (evalOp == null) {
@@ -127,7 +130,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
     }
 
     private interface EvalOperation {
-        public Object eval(Stack<Object> runStack);
+        public Object eval(Deque<Object> runStack);
     }
 
     private static void loadEvalOps() {
@@ -135,7 +138,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("+/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Object operand2 = runStack.pop();
                 Object operand1 = runStack.pop();
 
@@ -149,7 +152,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("-/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
@@ -159,7 +162,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("*/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
@@ -169,7 +172,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("//2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
@@ -179,7 +182,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("///2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
@@ -189,7 +192,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("rem/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigInteger operand2 = asBigDecimal(runStack.pop()).toBigInteger();
                 BigInteger operand1 = asBigDecimal(runStack.pop()).toBigInteger();
 
@@ -199,7 +202,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("mod/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigInteger operand2 = asBigDecimal(runStack.pop()).toBigInteger();
                 BigInteger operand1 = asBigDecimal(runStack.pop()).toBigInteger();
 
@@ -209,7 +212,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("-/1", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
                 return operand1.negate();
@@ -220,30 +223,30 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put(";/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Boolean operand2 = asBoolean(runStack.pop());
                 Boolean operand1 = asBoolean(runStack.pop());
 
-                return new Boolean(operand1.booleanValue() || operand2.booleanValue());
+                return Boolean.valueOf(operand1.booleanValue() || operand2.booleanValue());
             }
         });
 
         EVAL_OPS.put(",/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Boolean operand2 = asBoolean(runStack.pop());
                 Boolean operand1 = asBoolean(runStack.pop());
 
-                return new Boolean(operand1.booleanValue() && operand2.booleanValue());
+                return Boolean.valueOf(operand1.booleanValue() && operand2.booleanValue());
             }
         });
 
         EVAL_OPS.put("\\+/1", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Boolean operand1 = asBoolean(runStack.pop());
 
-                return new Boolean(!(operand1.booleanValue()));
+                return Boolean.valueOf(!(operand1.booleanValue()));
             }
         });
 
@@ -251,101 +254,101 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("==/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Object operand2 = runStack.pop();
                 Object operand1 = runStack.pop();
 
-                return new Boolean(operand1.equals(operand2));
+                return Boolean.valueOf(operand1.equals(operand2));
             }
         });
 
         EVAL_OPS.put("\\=/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Object operand2 = runStack.pop();
                 Object operand1 = runStack.pop();
 
-                return new Boolean(!operand1.equals(operand2));
+                return Boolean.valueOf(!operand1.equals(operand2));
             }
         });
 
         EVAL_OPS.put("</2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
-                return new Boolean(operand1.compareTo(operand2) < 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) < 0);
             }
         });
 
         EVAL_OPS.put(">/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
-                return new Boolean(operand1.compareTo(operand2) > 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) > 0);
             }
         });
 
         EVAL_OPS.put("=</2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
-                return new Boolean(operand1.compareTo(operand2) <= 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) <= 0);
             }
         });
 
         EVAL_OPS.put(">=/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 BigDecimal operand2 = asBigDecimal(runStack.pop());
                 BigDecimal operand1 = asBigDecimal(runStack.pop());
 
-                return new Boolean(operand1.compareTo(operand2) >= 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) >= 0);
             }
         });
 
         EVAL_OPS.put("@</2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 String operand2 = runStack.pop().toString();
                 String operand1 = runStack.pop().toString();
 
-                return new Boolean(operand1.compareTo(operand2) < 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) < 0);
             }
         });
 
         EVAL_OPS.put("@>/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 String operand2 = runStack.pop().toString();
                 String operand1 = runStack.pop().toString();
 
-                return new Boolean(operand1.compareTo(operand2) > 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) > 0);
             }
         });
 
         EVAL_OPS.put("@=</2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 String operand2 = runStack.pop().toString();
                 String operand1 = runStack.pop().toString();
 
-                return new Boolean(operand1.compareTo(operand2) <= 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) <= 0);
             }
         });
 
         EVAL_OPS.put("@>=/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 String operand2 = runStack.pop().toString();
                 String operand1 = runStack.pop().toString();
 
-                return new Boolean(operand1.compareTo(operand2) >= 0);
+                return Boolean.valueOf(operand1.compareTo(operand2) >= 0);
             }
         });
 
@@ -353,7 +356,7 @@ public class PixyEvalStep extends PixyCoalesceStep {
 
         EVAL_OPS.put("ifeq/2", new EvalOperation() {
             @Override
-            public Object eval(Stack<Object> runStack) {
+            public Object eval(Deque<Object> runStack) {
                 Object operand2 = runStack.pop();
                 Object operand1 = runStack.pop();
 
