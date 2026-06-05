@@ -10,7 +10,7 @@
 
   <groupId>com.lambdazen.pixy</groupId>
   <artifactId>pixy</artifactId>
-  <version>3.0.0</version>
+  <version>3.0.1-SNAPSHOT</version>
 
   <name>Pixy Graph Query Language</name>
   <description>Pixy is a declarative vendor-independent graph query language built on the TinkerPop software stack</description>
@@ -28,7 +28,7 @@
   <scm>
     <connection>scm:git:https://github.com/lambdazen/pixy.git</connection>
     <developerConnection>scm:git:https://github.com/lambdazen/pixy.git</developerConnection>
-    <tag>release-3.0.0</tag>
+    <tag>HEAD</tag>
     <url>https://github.com/lambdazen/pixy/</url>
   </scm>
 
