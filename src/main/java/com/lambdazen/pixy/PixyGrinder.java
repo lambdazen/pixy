@@ -4,15 +4,15 @@ import com.lambdazen.pixy.gremlin.PixySplitMergeStep;
 import com.lambdazen.pixy.pipes.*;
 import com.lambdazen.pixy.postprocess.Phase1;
 import com.lambdazen.pixy.postprocess.Phase2;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +26,12 @@ public class PixyGrinder {
     private static final Logger log = LoggerFactory.getLogger(PixyTheory.class);
 
     PixyTheory theory;
-    Stack<String> relationStack;
+    Deque<String> relationStack;
 
     public PixyGrinder(PixyTheory theory) {
         this.theory = theory;
 
-        this.relationStack = new Stack<String>();
+        this.relationStack = new ArrayDeque<String>();
     }
 
     public PixyPipe convertQueryToPipe(String query, Object... params) {
@@ -114,8 +114,7 @@ public class PixyGrinder {
                 PixyClause notClause1 = new PixyClause(
                         new PixyDatum(PixyDatumType.RELATION, "__not_" + rootRelName, relTuple), notBody1);
                 PixyClause notClause2 = new PixyClause(
-                        new PixyDatum(PixyDatumType.RELATION, "__not_" + rootRelName, relTuple),
-                        Collections.<PixyDatum>emptyList());
+                        new PixyDatum(PixyDatumType.RELATION, "__not_" + rootRelName, relTuple), List.<PixyDatum>of());
                 List<PixyClause> notClauses = Arrays.asList(new PixyClause[] {notClause1, notClause2});
 
                 return convertOrClausesToPixyPipe(notClauses, bindings, varGen, replacements);

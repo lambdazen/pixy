@@ -93,7 +93,9 @@ public class PixyClause {
         if (term instanceof PrologStruct) {
             PrologStruct structure = ((PrologStruct) term);
 
-            if (structure.getText().equals(",")) {
+            if ((structure.getText().isEmpty() || structure.getText().equals("()")) && structure.getArity() == 1) {
+                loadBody(structure.getTermAt(0));
+            } else if (structure.getText().equals(",")) {
                 loadBody(structure.getTermAt(0));
                 loadBody(structure.getTermAt(1));
             } else if (structure.getText().equals("=")) {
@@ -156,6 +158,12 @@ public class PixyClause {
             case STRUCT:
                 PrologStruct struct = (PrologStruct) term;
                 int arity = struct.getArity();
+
+                if ((struct.getText().isEmpty() || struct.getText().equals("()")) && arity == 1) {
+                    convertExpressionToList(struct.getTermAt(0), list);
+                    break;
+                }
+
                 String operation = struct.getText() + "/" + arity;
 
                 if ((booleanOps.contains(operation)) || (arithOps.contains(operation))) {

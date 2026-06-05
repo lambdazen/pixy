@@ -1,7 +1,6 @@
 package com.lambdazen.pixy.gremlin;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -137,6 +136,6 @@ public class PixySplitMergeStep<S, E> extends AbstractStep<S, E> implements Trav
     }
 
     public List getLocalChildren() {
-        return Collections.EMPTY_LIST;
+        return List.of();
     }
 }

@@ -14,15 +14,17 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.ByModulating;
 import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
+import org.apache.tinkerpop.gremlin.process.traversal.step.PopContaining;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.MapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ScalarMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalRing;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
-public class PixyCoalesceStep extends MapStep implements Scoping, TraversalParent, PathProcessor, ByModulating {
+public class PixyCoalesceStep extends ScalarMapStep implements Scoping, TraversalParent, PathProcessor, ByModulating {
     private TraversalRing<Object, Traversal.Admin> traversalRing = new TraversalRing<Object, Traversal.Admin>();
     private final List<String> selectKeys;
     private final Set<String> selectKeysSet;
@@ -112,6 +114,13 @@ public class PixyCoalesceStep extends MapStep implements Scoping, TraversalParen
         return this.selectKeysSet;
     }
 
+    @Override
+    public java.util.HashSet<PopContaining.PopInstruction> getPopInstructions() {
+        final java.util.HashSet<PopContaining.PopInstruction> instructions = Scoping.super.getPopInstructions();
+        instructions.addAll(TraversalParent.super.getPopInstructions());
+        return instructions;
+    }
+
     public Map<String, Traversal.Admin<Object, Traversal.Admin>> getByTraversals() {
         final Map<String, Traversal.Admin<Object, Traversal.Admin>> map = new HashMap<>();
         this.traversalRing.reset();
@@ -133,6 +142,9 @@ public class PixyCoalesceStep extends MapStep implements Scoping, TraversalParen
 
     @Override
     protected Traverser.Admin processNextStart() {
-        return PathProcessor.processTraverserPathLabels(super.processNextStart(), this.keepLabels);
+        final Traverser.Admin traverser = this.starts.next();
+        final Object mapped = map(traverser);
+        if (mapped == null) return EmptyTraverser.instance();
+        return PathProcessor.processTraverserPathLabels(traverser.split(mapped, this), this.keepLabels);
     }
 }

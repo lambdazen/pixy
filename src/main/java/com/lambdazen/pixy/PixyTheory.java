@@ -7,10 +7,11 @@ import static com.igormaznitsa.prologparser.ParserContext.FLAG_ZERO_QUOTATION_CH
 import com.igormaznitsa.prologparser.DefaultParserContext;
 import com.igormaznitsa.prologparser.GenericPrologParser;
 import com.igormaznitsa.prologparser.terms.PrologTerm;
+import com.igormaznitsa.prologparser.tokenizer.Op;
 import com.lambdazen.pixy.pipemakers.*;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,25 +51,26 @@ public class PixyTheory {
     };
 
     Map<String, PipeMaker> predefinedRules;
-    private Map<String, List<PixyClause>> rules;
+    private final Map<String, List<PixyClause>> rules;
 
     public PixyTheory(String theory) {
         this(theory, null);
     }
 
     protected PixyTheory(String theory, Map<String, List<PixyClause>> oldRules) {
-        this.predefinedRules = new HashMap<String, PipeMaker>();
+        this.predefinedRules = new HashMap<>();
         addPredefinedRules(DEFAULT_PREDEFINED_RULES);
 
         if (oldRules == null) {
-            this.rules = new HashMap<String, List<PixyClause>>();
+            this.rules = new HashMap<>();
         } else {
-            this.rules = new HashMap<String, List<PixyClause>>(oldRules);
+            this.rules = new HashMap<>(oldRules);
         }
 
         try (GenericPrologParser parser = new GenericPrologParser(
                 new StringReader(theory),
-                DefaultParserContext.of(FLAG_BLOCK_COMMENTS | FLAG_ZERO_QUOTATION_CHARCODE | FLAG_CURLY_BRACKETS))) {
+                DefaultParserContext.of(
+                        FLAG_BLOCK_COMMENTS | FLAG_ZERO_QUOTATION_CHARCODE | FLAG_CURLY_BRACKETS, Op.ISO))) {
             while (parser.hasNext()) {
                 PrologTerm prologTerm = parser.next();
                 PixyClause pc = new PixyClause(prologTerm);
@@ -96,8 +98,8 @@ public class PixyTheory {
     }
 
     public List<String> getRelationSignatures() {
-        List<String> ans = new ArrayList<String>(rules.keySet());
-        Collections.sort(ans);
+        List<String> ans = new ArrayList<>(rules.keySet());
+        ans.sort(Comparator.naturalOrder());
         return ans;
     }
 
@@ -112,7 +114,7 @@ public class PixyTheory {
     }
 
     public PixyTheory remove(String... rulesToRemove) {
-        Map<String, List<PixyClause>> rulesCopy = new HashMap<String, List<PixyClause>>(rules);
+        Map<String, List<PixyClause>> rulesCopy = new HashMap<>(rules);
 
         for (String rule : rulesToRemove) {
             if (rulesCopy.remove(rule) == null) {

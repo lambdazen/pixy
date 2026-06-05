@@ -379,10 +379,10 @@ public class PixyGrinderTest extends TestCase {
 
     public void loadGraph() {
         for (String[] kennedy : KENNEDY_FAMILY_TREE) {
-            Vertex v = graph.addVertex("name", kennedy[0], "sex", kennedy[1], "born", new Integer(kennedy[2]));
+            Vertex v = graph.addVertex("name", kennedy[0], "sex", kennedy[1], "born", Integer.valueOf(kennedy[2]));
 
             if (kennedy[3] != null) {
-                v.property("died", new Integer(kennedy[3]));
+                v.property("died", Integer.valueOf(kennedy[3]));
             }
 
             if (kennedy[4] != null) {
@@ -1159,19 +1159,19 @@ public class PixyGrinderTest extends TestCase {
                         // Demorgan
                         "overlapStr(A, B, C, Astr) :- Astr is ('' + A), \\+ ((B @> C ; Astr @>= C ; Astr @< B ; false) , (B @=< C ; Astr @>= B ; Astr @< C ; fail)). ");
 
-        List<Object> numbers = new ArrayList<Object>();
-        List<Object> fpNumbers = new ArrayList<Object>();
-        List<Integer> intNumbers = new ArrayList<Integer>();
+        List<Object> numbers = new ArrayList<>();
+        List<Object> fpNumbers = new ArrayList<>();
+        List<Integer> intNumbers = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            intNumbers.add(new Integer(i));
-            numbers.add(new Integer(i));
-            numbers.add(new Long(i));
-            numbers.add(new Short((short) i));
-            numbers.add(new Byte((byte) i));
+            intNumbers.add(i);
+            numbers.add(i);
+            numbers.add(Long.valueOf(i));
+            numbers.add(Short.valueOf((short) i));
+            numbers.add(Byte.valueOf((byte) i));
             numbers.add(new BigInteger("" + i));
 
-            fpNumbers.add(new Float((float) i));
-            fpNumbers.add(new Double((double) i));
+            fpNumbers.add(Float.valueOf((float) i));
+            fpNumbers.add(Double.valueOf((double) i));
             fpNumbers.add(new BigDecimal(i));
         }
 
@@ -1234,7 +1234,7 @@ public class PixyGrinderTest extends TestCase {
                     public Object apply(Object x) {
                         Traverser t = (Traverser) x;
                         Integer intVal = (Integer) t.get();
-                        return new Long(intVal.intValue());
+                        return Long.valueOf(intVal.intValue());
                     }
                 })
                 .as("n");
@@ -1245,7 +1245,7 @@ public class PixyGrinderTest extends TestCase {
         System.out.println("Pipeline: " + pipeline);
 
         for (int exp = 10; exp < 50; exp++) {
-            assertEquals(new Long(exp), pipeline.next());
+            assertEquals(Long.valueOf(exp), pipeline.next());
         }
         assertFalse(pipeline.hasNext());
 
@@ -1257,7 +1257,7 @@ public class PixyGrinderTest extends TestCase {
         System.out.println("Pipeline: " + pipeline);
 
         for (int exp = 0; exp < 70; exp++) {
-            assertEquals(new Integer(exp), pipeline.next());
+            assertEquals(Integer.valueOf(exp), pipeline.next());
         }
         assertFalse(pipeline.hasNext());
 
@@ -1265,10 +1265,10 @@ public class PixyGrinderTest extends TestCase {
         pp = pt.makePipe("overlapStr($, ?, ?, _)", 10, 50);
         pipeline = GraphTraversalExt.coalesce(pp.pixyStep(pipeline), "n");
         for (int exp = 2; exp <= 5; exp++) {
-            assertEquals(new Integer(exp), pipeline.next());
+            assertEquals(Integer.valueOf(exp), pipeline.next());
         }
         for (int exp = 10; exp < 50; exp++) {
-            assertEquals(new Integer(exp), pipeline.next());
+            assertEquals(Integer.valueOf(exp), pipeline.next());
         }
         assertFalse(pipeline.hasNext());
 
@@ -1279,10 +1279,10 @@ public class PixyGrinderTest extends TestCase {
         System.out.println("Pixy pipe: " + pp);
         System.out.println("Pipeline: " + pipeline);
 
-        assertEquals(new Integer(6), pipeline.next());
-        assertEquals(new Integer(7), pipeline.next());
+        assertEquals(Integer.valueOf(6), pipeline.next());
+        assertEquals(Integer.valueOf(7), pipeline.next());
         for (int exp = 57; exp < 70; exp++) {
-            assertEquals(new Integer(exp), pipeline.next());
+            assertEquals(Integer.valueOf(exp), pipeline.next());
         }
         assertFalse(pipeline.hasNext());
 
@@ -1301,8 +1301,8 @@ public class PixyGrinderTest extends TestCase {
 
         Map row = (Map) pipeline.next();
         assertEquals("Jack", row.get("nickname"));
-        assertEquals(new Integer(1917), row.get("born"));
-        assertEquals(new Integer(1963), row.get("died"));
+        assertEquals(Integer.valueOf(1917), row.get("born"));
+        assertEquals(Integer.valueOf(1963), row.get("died"));
         assertEquals("male", row.get("sex"));
 
         assertFalse(pipeline.hasNext());
@@ -1328,8 +1328,8 @@ public class PixyGrinderTest extends TestCase {
 
         row = (Map) pipeline.next();
         assertEquals("", row.get("nickname"));
-        assertEquals(new Integer(1966), row.get("born"));
-        assertEquals(new Integer(1999), row.get("died"));
+        assertEquals(Integer.valueOf(1966), row.get("born"));
+        assertEquals(Integer.valueOf(1999), row.get("died"));
         assertEquals("female", row.get("sex"));
 
         assertFalse(pipeline.hasNext());
@@ -1341,7 +1341,7 @@ public class PixyGrinderTest extends TestCase {
 
         row = (Map) pipeline.next();
         assertEquals("", row.get("nickname"));
-        assertEquals(new Integer(1959), row.get("born"));
+        assertEquals(Integer.valueOf(1959), row.get("born"));
         // TODO: Allow non-BigDecimal but numeric, defaults
         assertEquals(new BigDecimal(0), row.get("died"));
         assertEquals("male", row.get("sex"));

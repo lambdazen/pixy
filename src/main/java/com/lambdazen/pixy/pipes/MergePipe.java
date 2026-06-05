@@ -26,7 +26,7 @@ public class MergePipe implements PixyPipe, InternalLookupPipe {
     }
 
     public String toString() {
-        StringBuffer ans = new StringBuffer("merge(" + orPipes + ")");
+        StringBuilder ans = new StringBuilder("merge(" + orPipes + ")");
         for (String key : mergeVarsMap.keySet()) {
             if ((lastNamedOutputStep == null) || !(key.equals(lastNamedOutputStep))) {
                 ans.append(coalesceStr(key));
